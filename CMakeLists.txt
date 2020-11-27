@@ -16,6 +16,18 @@ set_target_properties(uri PROPERTIES
     CXX_EXTENSIONS NO
 )
 
+find_program(ragel_bin ragel)
+if (ragel_bin)
+    foreach(fpath src/panda/uri/parser src/panda/uri/parser_ext)
+        add_custom_command(
+            OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${fpath}.cc
+            COMMAND ragel -C -G2 ${fpath}.rl -o ${fpath}.cc
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${fpath}.rl
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endforeach()
+endif()
+
 find_package(panda-lib REQUIRED)
 target_link_libraries(uri panda::panda-lib)
 
