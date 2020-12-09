@@ -16,6 +16,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS NO
 )
 
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+set_source_files_properties(src/panda/uri/parser.cc     PROPERTIES COMPILE_FLAGS -Wno-implicit-fallthrough)
+set_source_files_properties(src/panda/uri/parser_ext.cc PROPERTIES COMPILE_FLAGS -Wno-implicit-fallthrough)
+
 find_program(ragel_bin ragel)
 if (ragel_bin)
     foreach(fpath src/panda/uri/parser src/panda/uri/parser_ext)
