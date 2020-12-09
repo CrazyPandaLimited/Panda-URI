@@ -5,12 +5,12 @@ enable_testing()
 set(LIB_TYPE STATIC)
 
 file(GLOB_RECURSE libSource RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/panda/*.cc")
-add_library(uri ${LIB_TYPE} ${libSource})
-target_include_directories(uri PUBLIC
+add_library(${PROJECT_NAME} ${LIB_TYPE} ${libSource})
+target_include_directories(${PROJECT_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>
 )
-set_target_properties(uri PROPERTIES
+set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
@@ -29,16 +29,14 @@ if (ragel_bin)
 endif()
 
 find_package(panda-lib REQUIRED)
-target_link_libraries(uri panda::panda-lib)
-
-add_library(panda::uri ALIAS uri)
+target_link_libraries(${PROJECT_NAME} panda-lib)
 
 ########################tests#######################################
 file(GLOB_RECURSE testSource RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "tests/*.cc")
 list(FILTER testSource EXCLUDE REGEX "tests/main.cc")
 
 add_library(tests STATIC EXCLUDE_FROM_ALL ${testSource})
-target_link_libraries(tests PUBLIC uri)
+target_link_libraries(tests PUBLIC ${PROJECT_NAME})
 
 find_package(Catch2)
 target_link_libraries(tests PUBLIC Catch2::Catch2)
@@ -50,12 +48,11 @@ add_test(test-all runtests)
 
 ########################install#####################################
 install(DIRECTORY src/ DESTINATION include FILES_MATCHING PATTERN "*.h")
-install(TARGETS uri EXPORT uri-targets ARCHIVE DESTINATION lib)
+install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}-targets ARCHIVE DESTINATION lib)
 
-install(EXPORT uri-targets
-    FILE panda-uri-targets.cmake
-    NAMESPACE panda::
-    DESTINATION lib/cmake/panda-uri
+install(EXPORT ${PROJECT_NAME}-targets
+    FILE ${PROJECT_NAME}-targets.cmake
+    DESTINATION lib/cmake/${PROJECT_NAME}
 )
 
-install(FILES panda-uri-config.cmake DESTINATION lib/cmake/panda-uri)
+install(FILES ${PROJECT_NAME}-config.cmake DESTINATION lib/cmake/${PROJECT_NAME})

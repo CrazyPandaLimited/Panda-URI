@@ -1,3 +1,3 @@
-if (NOT TARGET panda::uri)
-    include(uri-targets)
+if (NOT TARGET panda-uri)
+    include(panda-uri-targets)
 endif()
