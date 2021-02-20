@@ -73,6 +73,7 @@ struct URI : Refcnt {
     const string& user_info     () const { return _user_info; }
     const string& host          () const { return _host; }
     const string& path          () const { return _path; }
+    string        path_info     () const { return _path ? decode_uri_component(_path) : string(); }
     const string& fragment      () const { return _fragment; }
     uint16_t      explicit_port () const { return _port; }
     uint16_t      default_port  () const { return scheme_info ? scheme_info->default_port : 0; }
