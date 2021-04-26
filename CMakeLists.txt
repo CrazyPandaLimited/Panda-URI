@@ -42,16 +42,16 @@ target_link_libraries(${PROJECT_NAME} panda-lib)
 file(GLOB_RECURSE testSource RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "tests/*.cc")
 list(FILTER testSource EXCLUDE REGEX "tests/main.cc")
 
-add_library(tests STATIC EXCLUDE_FROM_ALL ${testSource})
-target_link_libraries(tests PUBLIC ${PROJECT_NAME})
+add_library(${PROJECT_NAME}-tests STATIC EXCLUDE_FROM_ALL ${testSource})
+target_link_libraries(${PROJECT_NAME}-tests PUBLIC ${PROJECT_NAME})
 
 find_package(Catch2)
-target_link_libraries(tests PUBLIC Catch2::Catch2)
+target_link_libraries(${PROJECT_NAME}-tests PUBLIC Catch2::Catch2)
 
 ########################ctests######################################
-add_executable(runtests ${EXCLUDE_TEST} ${testSource} "tests/main.cc")
-target_link_libraries(runtests tests)
-add_test(test-all runtests)
+add_executable(${PROJECT_NAME}-runtests ${EXCLUDE_TEST} ${testSource} "tests/main.cc")
+target_link_libraries(${PROJECT_NAME}-runtests ${PROJECT_NAME}-tests)
+add_test(test-all ${PROJECT_NAME}-runtests)
 
 ########################install#####################################
 install(DIRECTORY src/ DESTINATION include FILES_MATCHING PATTERN "*.h")
