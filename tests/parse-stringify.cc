@@ -54,7 +54,7 @@ TEST("user info") {
     test("http://user@ya.ru", "http", "user", "ya.ru");
     test("http://user:pass@ya.ru", "http", "user:pass", "ya.ru");
     test("http://user:@ya.ru", "http", "user:", "ya.ru");
-    test_wrong("http://cool@user@ya.ru"); // invalid chars
+    test_wrong("http://cool@user @ya.ru"); // invalid chars
 }
 
 TEST("host") {
