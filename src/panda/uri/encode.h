@@ -15,6 +15,7 @@ struct URIComponent {
     static const char fragment[256];
 };
 
+char* encode_char(unsigned char uc, char* buf) noexcept;
 size_t encode_uri_component (const string_view src, char* dest, const char* component = URIComponent::query_param);
 size_t decode_uri_component (const string_view src, char* dest);
 

@@ -27,16 +27,23 @@ TEST_CASE("uri", "[iri]") {
     URI uri = parse("https://вася:пупкин@москва.рф:99/кремль/президенты.html?💔=€#путин");
     CHECK(uri.scheme() == "https");
     CHECK(uri.user_info() == "вася:пупкин");
-    CHECK(uri.host() == "xn--80adxhks.xn--p1ai");
+    CHECK(uri.host() == "москва.рф");
     CHECK(uri.port() == 99);
     CHECK(uri.path() == "/кремль/президенты.html");
     CHECK(uri.query_string() == "💔=€");
     CHECK(uri.fragment() == "путин");
 }
 
+TEST_CASE("utf8 preseved upon setter", "[iri]") {
+    URI uri = parse("http://minsk.by/nemiga");
+    uri.host("минск.бел", true);
+    uri.path("/немига", true);
+    CHECK(uri.to_string() == "http://xn--h1aeefu.xn--90ais/%D0%BD%D0%B5%D0%BC%D0%B8%D0%B3%D0%B0");
+}
+
 TEST_CASE("uri schemaless", "[iri]") {
     URI uri = parse("//москва.рф/кремль/президенты.html?💔=€#путин");
-    CHECK(uri.host() == "xn--80adxhks.xn--p1ai");
+    CHECK(uri.host() == "москва.рф");
     CHECK(uri.path() == "/кремль/президенты.html");
     CHECK(uri.query_string() == "💔=€");
     CHECK(uri.fragment() == "путин");
@@ -54,7 +61,7 @@ TEST_CASE("utf8 problems", "[iri]") {
 }
 
 TEST_CASE("uri/to-string", "[iri]") {
-    CHECK(parse("http://москва.рф").to_string() == "http://xn--80adxhks.xn--p1ai");
+    CHECK(parse("http://в:п@москва.рф/ы?о=У#ё").to_string() == "http://%D0%B2:%D0%BF@xn--80adxhks.xn--p1ai/%D1%8B?%D0%BE=%D0%A3#%D1%91");
     // specially crafted value to mimic "."-symbol
     CHECK(parse("http://خ.бел").to_string() == "http://xn--tgb.xn--90ais");
 }

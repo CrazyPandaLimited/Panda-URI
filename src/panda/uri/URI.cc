@@ -5,6 +5,7 @@
 #include <panda/uri/all.h>
 #include "utf8.h"
 #include "punycode.h"
+#include "encode.h"
 
 
 namespace panda { namespace uri {
@@ -36,7 +37,7 @@ static size_t find_dot(const string_view& str) {
 }
 
 // in: utf8, out: ascii
-static string puny_encode_host(const string& host) {
+string URI::puny_encode_host(const string& host) {
     string_view in = host;
     string r;
     r.reserve(host.size() * 4 / 3);
@@ -66,7 +67,7 @@ static string puny_encode_host(const string& host) {
 
 
 // in: acsii, out: utf8
-static string puny_decode_host(const string& host) {
+string URI::puny_decode_host(const string& host) {
     string_view in = host;
     string r;
     r.reserve(host.size());
@@ -94,6 +95,41 @@ static string puny_decode_host(const string& host) {
     };
     return r;
 }
+
+string URI::encode_utf8(const string& in) {
+    string r(in.size() * 2);
+    string_view tail = in;
+    size_t left = r.capacity();
+    size_t size = 0;
+    auto buf = r.buf();
+    while(!tail.empty()) {
+        auto symbol = unpack(tail);
+        if (symbol.consumed == 0) {
+            throw panda::exception("non utf8-string");
+        } else if (symbol.consumed == 1) {
+            *buf++ = tail[0];
+            ++size;
+        } else {
+            auto need = symbol.consumed * 3;
+            if (left < need) {
+                r.length(size);
+                r.reserve(size + need);
+                left = need;
+                buf = r.buf() + size;
+            }
+            for(size_t i = 0; i < symbol.consumed; ++i) {
+                unsigned char uc = tail[i];
+                buf = encode_char(uc, buf);
+            }
+            left -= need;
+            size += need;
+        }
+        tail = tail.substr(symbol.consumed);
+    }
+    r.length(size);
+    return r;
+}
+
 
 void URI::register_scheme (const string& scheme, const std::type_info* ti, uricreator creator, uint16_t default_port, bool secure) {
     if (scheme_map.find(scheme) != scheme_map.end())
@@ -152,12 +188,11 @@ void URI::parse (const string& str) {
         decode_uri_component(_host, _host);
     }
 
-    if (_host && try_iri && has_non_ascii(_host)) {
-        if (_host.length() > 64) {
-            _host = "";
-        } else {
-            _host = puny_encode_host(_host);
-        }
+    if (try_iri) {
+        if (has_non_ascii(_host))      { _flags |= Flags::has_i_host;     }
+        if (has_non_ascii(_path))      { _flags |= Flags::has_i_path;     }
+        if (has_non_ascii(_qstr))      { _flags |= Flags::has_i_query;    }
+        if (has_non_ascii(_fragment))  { _flags |= Flags::has_i_fragment; }
     }
 
     if (_qstr) ok_qstr();
@@ -211,23 +246,28 @@ string URI::to_string (bool relative) const {
     string str(approx_len);
 
     if (!relative) {
+        auto host = _host;
+        if (_flags & Flags::has_i_host) {
+            if (host.length() > 64) { host = "";                      }
+            else                    { host = puny_encode_host(_host); }
+        }
         if (_scheme.length()) {
             str += _scheme;
-            if (_host.length()) str += "://";
+            if (host.length()) str += "://";
             else str += ':';
         }
-        else if (_host.length()) str += "//";
+        else if (host.length()) str += "//";
 
-        if (_host.length()) {
+        if (host.length()) {
             if (_user_info.length()) {
                 _encode_uri_component_append(_user_info, str, URIComponent::user_info);
                 str += '@';
             }
 
-            const auto& chost = _host;
+            const auto& chost = host;
             bool host_as_is = chost.front() == '[' && chost.back() == ']';
-            if (host_as_is) str += _host;
-            else            _encode_uri_component_append(_host, str, URIComponent::host);
+            if (host_as_is) str += host;
+            else            _encode_uri_component_append(host, str, URIComponent::host);
 
             if (_port) {
                 str += ':';
@@ -236,17 +276,21 @@ string URI::to_string (bool relative) const {
         }
     }
 
-    if (_path.length()) str += _path;
+    if (_path.length()) {
+        if (_flags & Flags::has_i_path) { str += encode_utf8(_path); }
+        else                            { str += _path;              }
+    }
     else if (relative) str += '/'; // relative path MUST NOT be empty
 
     if (_qstr.length()) {
         str += '?';
-        str += _qstr; // as is, because already encoded either by raw_query setter or by compile_query
+        // as is, because already encoded either by raw_query setter or by compile_query
+        str += _flags & Flags::has_i_query ? encode_utf8(_qstr) : _qstr;
     }
 
     if (_fragment.length()) {
         str += '#';
-        str += _fragment;
+        str += _flags & Flags::has_i_fragment ? encode_utf8(_fragment) : _fragment;
     }
 
     return str;
