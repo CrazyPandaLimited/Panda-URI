@@ -5,4 +5,3 @@
 #include <panda/uri/http.h>
 #include <panda/uri/socks.h>
 #include <panda/uri/telnet.h>
-#include <panda/uri/utf8.h>

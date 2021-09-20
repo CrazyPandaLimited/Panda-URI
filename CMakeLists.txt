@@ -22,7 +22,6 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
 set_source_files_properties(src/panda/uri/parser.cc     PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-unused-const-variable")
 set_source_files_properties(src/panda/uri/parser_ext.cc PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-unused-const-variable")
-set_source_files_properties(src/panda/uri/iri_parser.cc PROPERTIES COMPILE_FLAGS "-Wno-type-limits")
 
 find_program(ragel_bin ragel)
 if (ragel_bin)

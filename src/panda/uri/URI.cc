@@ -1,11 +1,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <unordered_map>
-#include <panda/exception.h>
 #include <panda/uri/all.h>
-#include "utf8.h"
-#include "punycode.h"
-
 
 namespace panda { namespace uri {
 
@@ -20,79 +16,6 @@ const string URI::_empty;
 
 void URI::register_scheme (const string& scheme, uint16_t default_port, bool secure) {
     register_scheme(scheme, &typeid(URI), [](const URI& u)->URI*{ return new URI(u);  }, default_port, secure);
-}
-
-const string_view URI::ace_prefix = "xn--";
-
-static size_t find_dot(const string_view& str) {
-    string_view in = str;
-    while(in.size()) {
-        auto code = unpack(in);
-        if (!code.consumed) throw panda::exception("incorrect utf8 codepoint");
-        if (code.consumed == 1 && in.front() == '.') return str.length() - in.length();
-        in = in.substr(code.consumed);
-    }
-    return string_view::npos;
-}
-
-// in: utf8, out: ascii
-static string puny_encode_host(const string& host) {
-    string_view in = host;
-    string r;
-    r.reserve(host.size() * 4 / 3);
-    while(in.size()) {
-        size_t to = find_dot(in);
-        auto label = (to == string::npos) ? in : in.substr(0, to);
-        if (!has_non_ascii(label)) r += label;
-        else  {
-            static const constexpr punycode_uint BUFF_SZ = 128;
-            char out_label[BUFF_SZ];
-            punycode_uint out_label_size = BUFF_SZ;
-            // assumes label to be casefolded: http://www.unicode.org/reports/tr46/#Mapping
-            auto ok = punycode_encode(label, &out_label_size, out_label);
-            if (ok == punycode_success) { r+= URI::ace_prefix; r+= string_view(out_label, out_label_size); }
-            else throw panda::exception(host + " has incorrect value");
-        }
-        auto tail = in.substr(label.size());
-        if (tail.size() && tail.front() == '.') {
-            r += ".";
-            in  = tail.substr(1);
-        } else {
-            in = tail;
-        }
-    };
-    return r;
-}
-
-
-// in: acsii, out: utf8
-static string puny_decode_host(const string& host) {
-    string_view in = host;
-    string r;
-    r.reserve(host.size());
-    while(in.size()) {
-        size_t to = in.find(".");
-        auto label = (to == in.npos) ? in : in.substr(0, to);
-        auto start = (label.size() >= URI::ace_prefix.size()) ? label.substr(0, URI::ace_prefix.size()) : "";
-        if (start != URI::ace_prefix) r += label;
-        else  {
-            auto puny = label.substr(URI::ace_prefix.size());
-            punycode_uint out_label_size = puny.size() * 4;
-            char out_label[out_label_size];
-            // assumes label to be casefolded: http://www.unicode.org/reports/tr46/#Mapping
-            auto ok = punycode_decode(puny, &out_label_size, out_label);
-            if (ok == punycode_success) {  r+= string_view(out_label, out_label_size); }
-            else                        { return "";                                   }
-        }
-        auto tail = in.substr(label.size());
-        if (tail.size() && tail.front() == '.') {
-            r += ".";
-            in  = tail.substr(1);
-        } else {
-            in = tail;
-        }
-    };
-    return r;
 }
 
 void URI::register_scheme (const string& scheme, const std::type_info* ti, uricreator creator, uint16_t default_port, bool secure) {
@@ -130,17 +53,7 @@ static const int __init = init();
 
 void URI::parse (const string& str) {
     bool authority_has_pct = false;
-
-    bool ok = false;
-    if (!(_flags & Flags::dont_parse_uri)) {
-        ok = (_flags & Flags::allow_extended_chars)
-           ? _parse_ext(str, authority_has_pct)
-           : _parse(str, authority_has_pct);
-    }
-    bool try_iri = !(_flags & Flags::dont_parse_iri);
-    if (!ok && try_iri) {
-        ok = _parse_iri(str);
-    }
+    bool ok = !(_flags & Flags::allow_extended_chars) ? _parse(str, authority_has_pct) : _parse_ext(str, authority_has_pct);
 
     if (!ok) {
         clear();
@@ -150,14 +63,6 @@ void URI::parse (const string& str) {
     if (authority_has_pct) {
         decode_uri_component(_user_info, _user_info);
         decode_uri_component(_host, _host);
-    }
-
-    if (_host && try_iri && has_non_ascii(_host)) {
-        if (_host.length() > 64) {
-            _host = "";
-        } else {
-            _host = puny_encode_host(_host);
-        }
     }
 
     if (_qstr) ok_qstr();
@@ -225,9 +130,8 @@ string URI::to_string (bool relative) const {
             }
 
             const auto& chost = _host;
-            bool host_as_is = chost.front() == '[' && chost.back() == ']';
-            if (host_as_is) str += _host;
-            else            _encode_uri_component_append(_host, str, URIComponent::host);
+            if (chost.front() == '[' && chost.back() == ']') str += _host;
+            else _encode_uri_component_append(_host, str, URIComponent::host);
 
             if (_port) {
                 str += ':';
@@ -465,17 +369,6 @@ void URI::password (const string& password) {
         _user_info += password;
     }
     else _user_info.replace(delim+1, string::npos, password);
-}
-
-string URI::host_punydecode () const {
-    if (_host.find(URI::ace_prefix) != _host.npos && _host.size() <= 64) {
-        return puny_decode_host(_host);
-    }
-    return _host;
-}
-
-void URI::host_punyencode (const string &value) {
-    _host = puny_encode_host(value);
 }
 
 std::ostream& operator<< (std::ostream& os, const URI& uri) {

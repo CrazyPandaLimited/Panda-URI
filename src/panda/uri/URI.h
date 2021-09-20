@@ -28,14 +28,10 @@ using URISP = iptr<URI>;
 
 struct URI : Refcnt {
     struct Flags {
-        static constexpr const int allow_suffix_reference = 0b00000001; // https://tools.ietf.org/html/rfc3986#section-4.5 uri may omit leading "SCHEME://"
-        static constexpr const int query_param_semicolon  = 0b00000010; // query params are delimited by ';' instead of '&'
-        static constexpr const int allow_extended_chars   = 0b00000100; // non-RFC input: allow some unencoded chars in query string
-        static constexpr const int dont_parse_uri         = 0b00001000; // RFC3986
-        static constexpr const int dont_parse_iri         = 0b00010000; // RFC3987
+        static constexpr const int allow_suffix_reference = 1; // https://tools.ietf.org/html/rfc3986#section-4.5 uri may omit leading "SCHEME://"
+        static constexpr const int query_param_semicolon  = 2; // query params are delimited by ';' instead of '&'
+        static constexpr const int allow_extended_chars   = 4; // non-RFC input: allow some unencoded chars in query string
     };
-
-    static const string_view ace_prefix;
 
     template <class TYPE1, class TYPE2 = void> struct Strict;
     struct http; struct https; struct ftp; struct socks; struct ws; struct wss; struct ssh; struct telnet; struct sftp;
@@ -65,10 +61,10 @@ struct URI : Refcnt {
         else                    return new URI(source);
     }
 
-    URI ()                                               : scheme_info(NULL), _port(0), _qrev(1), _flags(0) {}
-    URI (const string& s, int flags = 0)                 : scheme_info(NULL), _port(0), _qrev(1), _flags(flags)           { parse(s); }
-    URI (const string& s, const Query& q, int flags = 0) : URI(s, flags)                                                  { add_query(q); }
-    URI (const URI& s)                                                                                                                  { assign(s); }
+    URI ()                                               : scheme_info(NULL), _port(0), _qrev(1), _flags(0)     {}
+    URI (const string& s, int flags = 0)                 : scheme_info(NULL), _port(0), _qrev(1), _flags(flags) { parse(s); }
+    URI (const string& s, const Query& q, int flags = 0) : URI(s, flags)                                        { add_query(q); }
+    URI (const URI& s)                                                                                          { assign(s); }
 
     URI& operator= (const URI& source)    { if (this != &source) assign(source); return *this; }
     URI& operator= (const string& source) { assign(source); return *this; }
@@ -84,9 +80,6 @@ struct URI : Refcnt {
     uint16_t      port          () const { return _port ? _port : default_port(); }
     bool          secure        () const { return scheme_info ? scheme_info->secure : false; }
     bool          empty         () const { return _scheme.empty() && _host.empty() && _path.empty() && query_string().empty() && _fragment.empty(); }
-
-    string host_punydecode () const;
-    void   host_punyencode (const string& value);
 
     virtual void assign (const URI& source) {
         _scheme     = source._scheme;
@@ -325,7 +318,6 @@ private:
 
     bool _parse     (const string&, bool&);
     bool _parse_ext (const string&, bool&);
-    bool _parse_iri (const string&);
 };
 
 std::ostream& operator<< (std::ostream& os, const URI& uri);
