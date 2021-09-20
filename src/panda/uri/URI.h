@@ -28,15 +28,11 @@ using URISP = iptr<URI>;
 
 struct URI : Refcnt {
     struct Flags {
-        static constexpr const int allow_suffix_reference = 0b0000000000000001; // https://tools.ietf.org/html/rfc3986#section-4.5 uri may omit leading "SCHEME://"
-        static constexpr const int query_param_semicolon  = 0b0000000000000010; // query params are delimited by ';' instead of '&'
-        static constexpr const int allow_extended_chars   = 0b0000000000000100; // non-RFC input: allow some unencoded chars in query string
-        static constexpr const int dont_parse_uri         = 0b0000000000001000; // RFC3986
-        static constexpr const int dont_parse_iri         = 0b0000000000010000; // RFC3987
-        static constexpr const int has_i_host             = 0b0000000000100000;
-        static constexpr const int has_i_path             = 0b0000000001000000;
-        static constexpr const int has_i_query            = 0b0000000010000000;
-        static constexpr const int has_i_fragment         = 0b0000000100000000;
+        static constexpr const int allow_suffix_reference = 0b00000001; // https://tools.ietf.org/html/rfc3986#section-4.5 uri may omit leading "SCHEME://"
+        static constexpr const int query_param_semicolon  = 0b00000010; // query params are delimited by ';' instead of '&'
+        static constexpr const int allow_extended_chars   = 0b00000100; // non-RFC input: allow some unencoded chars in query string
+        static constexpr const int dont_parse_uri         = 0b00001000; // RFC3986
+        static constexpr const int dont_parse_iri         = 0b00010000; // RFC3987
     };
 
     static const string_view ace_prefix;
@@ -81,8 +77,8 @@ struct URI : Refcnt {
     const string& user_info     () const { return _user_info; }
     const string& host          () const { return _host; }
     const string& path          () const { return _path; }
-    const string& fragment      () const { return  _fragment; }
     string        path_info     () const { return _path ? decode_uri_component(_path) : string(); }
+    const string& fragment      () const { return _fragment; }
     uint16_t      explicit_port () const { return _port; }
     uint16_t      default_port  () const { return scheme_info ? scheme_info->default_port : 0; }
     uint16_t      port          () const { return _port ? _port : default_port(); }
@@ -138,37 +134,31 @@ struct URI : Refcnt {
         sync_scheme_info();
     }
 
-    inline void _set_iflag (int value, bool enable) noexcept {
-        if (enable) _flags |= value;
-        else        _flags &= ~value;
-    }
-    void user_info (const string& user_info)                   { _user_info = user_info; }
-    void host      (const string& host, bool utf8 = false)     { _host      = host;     _set_iflag(Flags::has_i_host, utf8);     }
-    void fragment  (const string& fragment, bool utf8 = false) { _fragment  = fragment; _set_iflag(Flags::has_i_fragment, utf8); }
-    void port      (uint16_t port)                             { _port      = port; }
+    void user_info (const string& user_info) { _user_info = user_info; }
+    void host      (const string& host)      { _host      = host; }
+    void fragment  (const string& fragment)  { _fragment  = fragment; }
+    void port      (uint16_t port)           { _port      = port; }
 
-    void path (const string& path, bool utf8 = false) {
+    void path (const string& path) {
         if (path && path.front() != '/') {
             _path = '/';
             _path += path;
         }
         else _path = path;
-        _set_iflag(Flags::has_i_path, utf8);
     }
 
-    void query_string (const string& qstr, bool utf8 = false) {
+    void query_string (const string& qstr) {
         _qstr = qstr;
         ok_qstr();
-        _set_iflag(Flags::has_i_query, utf8);
     }
 
     void raw_query (const string& rq) {
         _qstr.clear();
         encode_uri_component(rq, _qstr, URIComponent::query);
-        _set_iflag(Flags::has_i_query, false);
+        ok_qstr();
     }
 
-    void query (const string& qstr, bool utf8 = false) { query_string(qstr, utf8); }
+    void query (const string& qstr) { query_string(qstr); }
     void query (const Query& query) {
         _query = query;
         ok_query();
@@ -336,10 +326,6 @@ private:
     bool _parse     (const string&, bool&);
     bool _parse_ext (const string&, bool&);
     bool _parse_iri (const string&);
-
-    static string puny_decode_host(const string& host);
-    static string puny_encode_host(const string& host);
-    static string encode_utf8(const string& in);
 };
 
 std::ostream& operator<< (std::ostream& os, const URI& uri);
